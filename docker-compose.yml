@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  hello-world:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: docker-hello-world
+    container_name: docker-hello-world-container
