@@ -1,0 +1,49 @@
+@startuml GitHub Actions CI/CD
+' !theme plain
+
+skinparam componentStyle rectangle
+skinparam sequenceMessageAlign center
+
+actor "Developer" as Developer
+participant "GitHub\nRepository" as GitHub
+participant "GitHub Actions\nRunner\n(GitHub Hosted Ubuntu VM)" as Actions
+database "Docker Hub\nRegistry" as DockerHub
+
+Developer -> GitHub : 1. git push (e.g., to 'github-workflow')
+activate GitHub
+
+GitHub -> Actions : 2. Push event triggers\n.github/workflows/docker-build-push.yml
+deactivate GitHub
+activate Actions
+
+Actions -> Actions : 3. Provision Runner &\nCheckout source code
+note right of Actions
+  Actions checks out the repository
+  code into the runner workspace
+end note
+
+Actions -> DockerHub : 4. Authenticate (`docker/login-action`)\nusing Repository Secrets
+activate DockerHub
+DockerHub --> Actions : Login Succeeded
+deactivate DockerHub
+
+Actions -> Actions : 5. Build Docker Image (`docker/build-push-action`)
+note right of Actions
+  Executes `docker build` using the
+  Dockerfile in the repository.
+  Can handle multi-arch builds.
+end note
+
+Actions -> DockerHub : 6. Push Docker Image (`docker/build-push-action`)
+activate DockerHub
+note right of Actions
+  Uploads image layers & 
+  manifest over network
+end note
+DockerHub --> Actions : Image accepted
+deactivate DockerHub
+
+Actions --> Developer : 7. Marks Workflow Run as Success
+deactivate Actions
+
+@enduml
