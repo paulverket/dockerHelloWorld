@@ -1,0 +1,56 @@
+@startuml Jenkins CI/CD
+' !theme plain
+
+skinparam componentStyle rectangle
+skinparam sequenceMessageAlign center
+
+actor "Developer" as Developer
+participant "GitHub\nRepository" as GitHub
+participant "Jenkins\nCI Server\n(AWS EC2 VM)" as Jenkins
+participant "Docker Daemon\n(AWS EC2 VM)" as DockerD
+database "Docker Hub\nRegistry" as DockerHub
+
+Developer -> GitHub : 1. git push to 'main'
+activate GitHub
+
+GitHub -> Jenkins : 2. Webhook triggers HTTP POST\n(Push Event)
+deactivate GitHub
+activate Jenkins
+
+Jenkins -> GitHub : 3. Git pull/checkout (Fetch Jenkinsfile & source)
+GitHub --> Jenkins : Source code delivered
+
+Jenkins -> DockerD : 4. Execute: `docker build -t verket/docker-hello-world:latest .`\n(via /var/run/docker.sock)
+activate DockerD
+note right of DockerD
+  Docker daemon on the EC2 machine
+  reads the Dockerfile and compiles 
+  the C++ code inside the container
+end note
+DockerD --> Jenkins : Image built locally on VM
+deactivate DockerD
+
+Jenkins -> DockerHub : 5. Execute: `docker login`\n(Authenticates with jenkins credentials)
+activate DockerHub
+DockerHub --> Jenkins : Login Succeeded
+deactivate DockerHub
+
+Jenkins -> DockerD : 6. Execute: `docker push verket/docker-hello-world:latest`
+activate DockerD
+DockerD -> DockerHub : 7. Uploads image layers & manifest over network
+activate DockerHub
+DockerHub --> DockerD : Image accepted
+deactivate DockerHub
+DockerD --> Jenkins : Push completed successfully
+deactivate DockerD
+
+Jenkins -> DockerD : 8. Execute: `docker rmi`\n(Cleans up local VM disk space)
+note right of Jenkins
+  Jenkins clears the image from the 
+  EC2 instance so it doesn't fill up
+end note
+
+Jenkins --> Developer : 9. Marks Pipeline as Success
+deactivate Jenkins
+
+@enduml
